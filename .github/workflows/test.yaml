@@ -1,0 +1,26 @@
+name: Continuous Integration - Tests
+
+on:
+  push:
+    branches-ignore:
+      - "gh-pages"
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    name: Build & Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker Test Image
+        run: docker build -t cygnetops/react-test -f Dockerfile.dev .
+
+      - name: Run Tests
+        run: docker run -e CI=true cygnetops/react-test npm test

@@ -1,4 +1,4 @@
-name: Deploy Frontend
+name: Continuous Deployment - Elastic Beanstalk
 
 on:
   push:
@@ -6,20 +6,41 @@ on:
       - main
       - master
   workflow_dispatch:
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
+jobs:
+  build-and-deploy:
+    name: Build Production Image & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 1. Autenticazione Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker Image
-        run: docker build -t cygnetops/react-test -f Dockerfile.dev .
+      # 2. Build dell'immagine di produzione e Push su Docker Hub
+      - name: Build and Push Production Image
+        run: |
+          docker build -t cygnetops/multi-docker .
+          docker push cygnetops/multi-docker
 
-      - name: Run Tests
-        run: docker run -e CI=true cygnetops/react-test npm test
+      # 3. Creazione del pacchetto ZIP per Elastic Beanstalk
+      - name: Generate Deployment Package
+        run: zip -r deploy.zip . -x '*.git*'
+
+      # 4. Deploy su AWS Elastic Beanstalk
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: docker-react-course
+          environment_name: Docker-react-course-env
+          version_label: ${{ github.sha }}
+          region: eu-west-1
+          deployment_package: deploy.zip
